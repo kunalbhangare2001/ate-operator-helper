@@ -1,0 +1,48 @@
+=== Streamlit App Update Instructions ===
+
+1. Make changes in Codespaces:
+   - Edit your Python scripts, JSON files, or assets as needed.
+
+2. Stage your changes:
+   Run the following command in your Codespaces terminal:
+   git add .
+
+3. Commit your changes:
+   Use a meaningful commit message describing the update:
+   git commit -m "Describe your changes here"
+
+4. Push changes to GitHub:
+   Make sure to push to the branch connected to your Streamlit app (usually 'main'):
+   git push origin main
+
+5. Verify changes on GitHub:
+   - Go to your GitHub repository in the browser.
+   - Confirm your commit and files are updated.
+
+6. Refresh your Streamlit Cloud app:
+   - Go to https://streamlit.io/cloud and sign in.
+   - Click your deployed app from the dashboard.
+   - Click the three dots (⋮) menu in the top-right corner.
+   - Select “Rerun” or “Restart” to pull the latest code.
+
+7. Test the live app:
+   - Check that your updates are reflected and features work correctly.
+
+8. Manage secrets securely (if applicable):
+   - Do NOT commit sensitive files like email_config.json to GitHub.
+   - Use Streamlit Cloud Secrets Manager:
+     * Go to your app’s Settings > Secrets.
+     * Add/update environment variables like EMAIL_PASSWORD.
+
+Optional Tips:
+- Add 'email_config.json' or other sensitive files to .gitignore.
+- Use clear commit messages.
+- Keep secrets safe and separate from code.
+
+---
+
+For any issues, check:
+- Branch you pushed to matches deployment branch.
+- All files needed are committed and pushed.
+- Secrets are correctly set in Streamlit Cloud.
+- Manual rerun/restart in Streamlit Cloud after pushing changes.
