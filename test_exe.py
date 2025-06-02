@@ -2,15 +2,66 @@ import streamlit as st
 import json
 import os
 import base64
+import smtplib
+from email.message import EmailMessage
 
-# Determine base path for assets (images, downloads, logo, JSON)
+# Determine base path
 base_path = os.path.dirname(os.path.abspath(__file__))
 
+# Paths
 json_file_path = os.path.join(base_path, "troubleshooting_data.json")
 images_folder = os.path.join(base_path, "images")
 downloads_folder = os.path.join(base_path, "downloads")
 logo_path = os.path.join(base_path, "logo.png")
+email_config_path = os.path.join(base_path, "email_config.json")
 
+# Send email function
+def send_email(subject, body):
+    try:
+        with open(email_config_path, "r") as f:
+            email_config = json.load(f)
+
+        from_email = email_config["EMAIL_ADDRESS"]
+        to_email = email_config["TO_EMAIL"]
+        smtp_server = email_config.get("SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = email_config.get("SMTP_PORT", 587)
+        password = os.getenv("EMAIL_PASSWORD")  # Environment variable for safety
+
+        if not password:
+            st.error("❌ EMAIL_PASSWORD environment variable is not set.")
+            return False
+
+        msg = EmailMessage()
+        msg.set_content(body)
+        msg["Subject"] = subject
+        msg["From"] = from_email
+        msg["To"] = to_email
+
+        with smtplib.SMTP(smtp_server, smtp_port) as smtp:
+            smtp.starttls()
+            smtp.login(from_email, password)
+            smtp.send_message(msg)
+
+        return True
+    except Exception as e:
+        st.error(f"❌ Email failed: {e}")
+        return False
+
+# Display troubleshooting steps
+def display_steps(steps):
+    for step in steps:
+        if isinstance(step, dict):
+            st.markdown(f"- {step.get('step', '')}")
+            if "image" in step:
+                image_path = os.path.join(images_folder, step["image"])
+                if os.path.exists(image_path):
+                    st.image(image_path, use_container_width=False, width=600)
+                else:
+                    st.warning(f"⚠️ Image not found: {step['image']}")
+        else:
+            st.markdown(f"- {step}")
+
+# Main Streamlit app
 def main():
     st.set_page_config(page_title="ATE Operator Helper", page_icon="🤖", layout="centered")
 
@@ -36,16 +87,6 @@ def main():
         .main-content {
             padding-top: 20px;
         }
-        .doc-category {
-            background-color: #f0f2f6;
-            border-radius: 5px;
-            padding: 10px;
-            margin: 5px 0;
-        }
-        .selected-category {
-            border-left: 4px solid #1f77b4;
-            background-color: #e6f2ff;
-        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -56,16 +97,14 @@ def main():
                 <h1>🤖 ATE Operator Assistant</h1>
                 <img src="data:image/png;base64,{logo_base64}" width="180" height="80">
             </div>
-            """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
     else:
         st.markdown("""
             <div class="sticky-header">
                 <h1>🤖 ATE Operator Assistant</h1>
                 <p>⚠️ Logo not found</p>
             </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown('<div class="main-content"></div>', unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
     if not os.path.exists(json_file_path):
         st.error(f"❌ File not found: troubleshooting_data.json\nExpected at: {json_file_path}")
@@ -82,21 +121,7 @@ def main():
         st.error(f"❌ Unexpected error: {e}")
         st.stop()
 
-    def display_steps(steps):
-        for step in steps:
-            if isinstance(step, dict):
-                st.markdown(f"- {step.get('step', '')}")
-                if "image" in step:
-                    image_path = os.path.join(images_folder, step["image"])
-                    if os.path.exists(image_path):
-                        st.image(image_path, use_container_width=False, width=600)
-                    else:
-                        st.warning(f"⚠️ Image not found: {step['image']}")
-            else:
-                st.markdown(f"- {step}")
-
     troubleshooting_categories = {k: v for k, v in troubleshooting_data.items() if k != "Support_Documents"}
-
     st.markdown("### How can I help you today?")
     main_option = st.selectbox("Select a category:", list(troubleshooting_categories.keys()))
 
@@ -111,7 +136,6 @@ def main():
 
     st.markdown("---")
     st.markdown("### 📥 Download Support Files")
-
     if "Support_Documents" in troubleshooting_data:
         doc_categories = list(troubleshooting_data["Support_Documents"].keys())
         col1, col2 = st.columns([1, 3])
@@ -137,18 +161,23 @@ def main():
             else:
                 st.info("No documents available for this category.")
     else:
-        if os.path.exists(downloads_folder):
-            files = os.listdir(downloads_folder)
-            pdf_files = [f for f in files if f.lower().endswith(".pdf")]
-            if pdf_files:
-                selected_pdf = st.selectbox("Select a file to download:", pdf_files)
-                file_path = os.path.join(downloads_folder, selected_pdf)
-                with open(file_path, "rb") as f:
-                    st.download_button(label="Download PDF", data=f, file_name=selected_pdf, mime="application/pdf")
+        st.warning("⚠️ No 'Support_Documents' found in JSON.")
+
+    st.markdown("---")
+    st.markdown("### 📧 Send Custom Message to Support")
+
+    with st.form("email_form"):
+        subject = st.text_input("Subject", value="ATE Operator Support Request")
+        body = st.text_area("Message")
+        send_button = st.form_submit_button("Send Email")
+
+        if send_button:
+            if not body.strip():
+                st.warning("⚠️ Message cannot be empty.")
             else:
-                st.info("No PDF files available in the downloads folder.")
-        else:
-            st.warning("⚠️ Downloads folder not found.")
+                success = send_email(subject, body)
+                if success:
+                    st.success("✅ Email sent successfully.")
 
 if __name__ == "__main__":
     main()
